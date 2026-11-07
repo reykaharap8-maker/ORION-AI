@@ -1,9 +1,24 @@
 
+import requests
+
 class Orion:
     def __init__(self):
         self.name = "ORION"
-        self.version = "0.1.0"
-        self.memory = []
+        self.model = "qwen2.5:1.5b"
+        self.url = "http://localhost:11434/api/chat"
+
+        self.memory = [
+            {
+                "role": "system",
+                "content": (
+                    "Your name is ORION. "
+                    "You are an intelligent, friendly, "
+                    "curious and thoughtful AI assistant. "
+                    "Speak naturally and follow the user's language. "
+                    "Your default language is Indonesian."
+                )
+            }
+        ]
 
     def think(self, message):
         self.memory.append({
@@ -11,23 +26,41 @@ class Orion:
             "content": message
         })
 
-        response = (
-            f"Aku {self.name}, "
-            f"aku menerima pesanmu: {message}"
-        )
+        try:
+            response = requests.post(
+                self.url,
+                json={
+                    "model": self.model,
+                    "messages": self.memory,
+                    "stream": False
+                },
+                timeout=120
+            )
 
-        self.memory.append({
-            "role": "assistant",
-            "content": response
-        })
+            response.raise_for_status()
 
-        return response
+            answer = response.json()["message"]["content"]
+
+            self.memory.append({
+                "role": "assistant",
+                "content": answer
+            })
+
+            return answer
+
+        except requests.exceptions.ConnectionError:
+            self.memory.pop()
+            return "Otak lokal belum terhubung. Pastikan Ollama berjalan."
+
+        except requests.exceptions.RequestException as error:
+            self.memory.pop()
+            return f"Terjadi kesalahan koneksi: {error}"
 
 
 if __name__ == "__main__":
     ai = Orion()
 
-    print("ORION AI v0.1.0")
+    print("ORION AI v0.2.0")
     print("Ketik 'exit' untuk keluar.")
 
     while True:
@@ -37,4 +70,4 @@ if __name__ == "__main__":
             print("ORION: Sampai jumpa!")
             break
 
-        print("ORION:", ai.think(message))
+        print("\nORION:", ai.think(message))
